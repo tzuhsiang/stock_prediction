@@ -3,8 +3,10 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Set proxy for pip install
-ENV HTTP_PROXY="http://10.160.3.88:8080"
-ENV HTTPS_PROXY="http://10.160.3.88:8080"
+ENV http_proxy="http://10.160.3.88:8080" \
+    https_proxy="http://10.160.3.88:8080" \
+    HTTP_PROXY="http://10.160.3.88:8080" \
+    HTTPS_PROXY="http://10.160.3.88:8080"
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
