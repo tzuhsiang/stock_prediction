@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 ENV HTTP_PROXY=""
 ENV HTTPS_PROXY==""
 
-COPY . .
+COPY stock_predictor.py .
 
 EXPOSE 8501
 
