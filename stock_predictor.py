@@ -1,6 +1,8 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import os
+from urllib import request
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, r2_score
 from tensorflow.keras.models import Sequential
@@ -12,11 +14,21 @@ class StockPredictor:
         self.model = None
         self.scaler = MinMaxScaler()
         
+        # Configure proxy for yfinance
+        proxy = os.environ.get('HTTP_PROXY')
+        if proxy:
+            request.getproxies = lambda: {'http': proxy, 'https': proxy}
+        
     def fetch_data(self, symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
         """Fetch stock data from Yahoo Finance"""
-        data = yf.download(symbol, start=start_date, end=end_date)
-        if data.empty:
-            raise ValueError(f"No data found for {symbol}")
+        try:
+            data = yf.download(symbol, start=start_date, end=end_date, proxy=os.environ.get('HTTP_PROXY'))
+            if data.empty:
+                raise ValueError(f"No data found for symbol {symbol}. Please check the symbol is correct.")
+            if len(data) < self.sequence_length:
+                raise ValueError(f"Not enough data points for {symbol}. Need at least {self.sequence_length} days of data.")
+        except Exception as e:
+            raise ValueError(f"Error fetching data for {symbol}: {str(e)}")
         return data
     
     def prepare_data(self, data: pd.DataFrame):

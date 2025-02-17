@@ -11,7 +11,15 @@ st.title("Stock Price Predictor 📈")
 # Sidebar inputs
 with st.sidebar:
     st.header("Configuration")
-    symbol = st.text_input("Stock Symbol", value="2330.TW")
+    st.markdown("""
+    ### Stock Symbol Guide
+    - Taiwan stocks: Enter number only (e.g., '2330' for TSMC)
+    - US stocks: Enter full symbol (e.g., 'AAPL' for Apple)
+    """)
+    raw_symbol = st.text_input("Stock Symbol", value="2330")
+    
+    # Automatically append .TW for numeric symbols (Taiwan stocks)
+    symbol = raw_symbol + ".TW" if raw_symbol.isdigit() else raw_symbol
     
     # Date inputs
     today = date.today()
