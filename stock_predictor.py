@@ -84,6 +84,33 @@ class StockPredictor:
         """Make predictions"""
         predictions = self.model.predict(X)
         return self.scaler.inverse_transform(predictions)
+    
+    def predict_future(self, last_sequence, days=30):
+        """Predict future stock prices
+        
+        Args:
+            last_sequence: The last sequence of actual prices
+            days: Number of days to predict into the future
+        """
+        future_predictions = []
+        current_sequence = last_sequence.copy()
+        
+        for _ in range(days):
+            # Reshape the sequence for prediction
+            current_sequence_scaled = self.scaler.transform(current_sequence)
+            current_sequence_reshaped = current_sequence_scaled[-self.sequence_length:].reshape(1, self.sequence_length, 1)
+            
+            # Predict the next day
+            next_pred = self.model.predict(current_sequence_reshaped)
+            next_pred_original = self.scaler.inverse_transform(next_pred)
+            
+            # Add the prediction to our results
+            future_predictions.append(next_pred_original[0, 0])
+            
+            # Update the sequence by removing the first element and adding the new prediction
+            current_sequence = np.vstack([current_sequence[1:], next_pred_original])
+            
+        return np.array(future_predictions)
 
     def evaluate(self, y_true, y_pred):
         """Calculate error metrics"""
@@ -109,6 +136,14 @@ class StockPredictor:
         y_train_inv = self.scaler.inverse_transform([y_train]).T
         y_test_inv = self.scaler.inverse_transform([y_test]).T
         
+        # Generate future predictions
+        future_days = 30  # Predict next 30 days
+        future_pred = self.predict_future(prices, future_days)
+        
+        # Create future dates for plotting
+        last_date = data.index[-1]
+        future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=future_days)
+        
         # Calculate metrics
         train_rmse, train_r2 = self.evaluate(y_train_inv, train_pred)
         test_rmse, test_r2 = self.evaluate(y_test_inv, test_pred)
@@ -117,8 +152,10 @@ class StockPredictor:
             'data': data,
             'predictions': {
                 'train': train_pred,
-                'test': test_pred
+                'test': test_pred,
+                'future': future_pred
             },
+            'future_dates': future_dates,
             'actual': {
                 'train': y_train_inv,
                 'test': y_test_inv
