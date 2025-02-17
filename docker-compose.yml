@@ -10,6 +10,7 @@ services:
       - ./models:/app/models
     environment:
       - TZ=Asia/Taipei
+      - HTTP_PROXY=http://10.160.3.88:8080
     deploy:
       resources:
         limits:
