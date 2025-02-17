@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 from datetime import date, timedelta
 from stock_predictor import StockPredictor
 import numpy as np
+import pandas as pd
 
 st.set_page_config(page_title="Stock Price Predictor", page_icon="📈", layout="wide")
 
@@ -23,14 +24,14 @@ with st.sidebar:
     
     # Date inputs
     today = date.today()
-    past_date = today - timedelta(days=365*2)  # 2 years ago
-    start_date = st.date_input("Start Date", value=past_date)
+    default_start = date(2025, 1, 1)  # January 1st, 2025
+    start_date = st.date_input("Start Date", value=default_start)
     end_date = st.date_input("End Date", value=today)
     
     # Model parameters
     st.header("Model Parameters")
-    sequence_length = st.slider("Sequence Length (days)", min_value=30, max_value=90, value=60)
-    epochs = st.slider("Training Epochs", min_value=10, max_value=100, value=50)
+    sequence_length = st.slider("Sequence Length (days)", min_value=10, max_value=90, value=30)
+    epochs = st.slider("Training Epochs", min_value=10, max_value=100, value=30)
     
     predict_button = st.button("Predict", type="primary")
 
@@ -64,6 +65,17 @@ if predict_button:
             # Create Plotly figure
             fig = go.Figure()
             
+            # Prepare combined prediction timeline
+            last_date = results['data'].index[-1]
+            combined_dates = pd.concat([
+                pd.Series(results['data'].index[-len(results['predictions']['test']):]),
+                pd.Series(results['future_dates'])
+            ])
+            combined_predictions = np.concatenate([
+                results['predictions']['test'].flatten(),
+                results['predictions']['future']
+            ])
+
             # Add actual prices
             fig.add_trace(go.Scatter(
                 x=results['data'].index[-len(results['actual']['test']):],
@@ -72,12 +84,37 @@ if predict_button:
                 line=dict(color='blue')
             ))
             
-            # Add predictions
+            # Add combined predictions (historical + future)
             fig.add_trace(go.Scatter(
-                x=results['data'].index[-len(results['predictions']['test']):],
-                y=results['predictions']['test'].flatten(),
+                x=combined_dates,
+                y=combined_predictions,
                 name="Predicted",
                 line=dict(color='red', dash='dash')
+            ))
+            
+            # Add confidence interval for future predictions
+            future_std = np.std(results['predictions']['test']) # Use test predictions std as uncertainty measure
+            future_upper = results['predictions']['future'] + future_std
+            future_lower = results['predictions']['future'] - future_std
+            
+            # Add prediction intervals for future dates only
+            fig.add_trace(go.Scatter(
+                x=pd.concat([pd.Series([last_date]), pd.Series(results['future_dates'])]),
+                y=np.concatenate([[combined_predictions[-len(future_upper)-1]], future_upper]),
+                fill=None,
+                mode='lines',
+                line=dict(width=0),
+                showlegend=False
+            ))
+            
+            fig.add_trace(go.Scatter(
+                x=pd.concat([pd.Series([last_date]), pd.Series(results['future_dates'])]),
+                y=np.concatenate([[combined_predictions[-len(future_lower)-1]], future_lower]),
+                fill='tonexty',
+                mode='lines',
+                line=dict(width=0),
+                fillcolor='rgba(255, 0, 0, 0.1)',
+                name="Prediction Interval"
             ))
             
             # Update layout
@@ -125,6 +162,8 @@ The model is trained on historical data and attempts to predict future price mov
 ### Features
 - Real-time data fetching from Yahoo Finance
 - Interactive plots with actual vs predicted prices
+- Future price predictions for next 30 days
+- Prediction confidence intervals
 - Model performance metrics (RMSE and R² score)
 - Customizable model parameters
 """)
