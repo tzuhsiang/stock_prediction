@@ -14,24 +14,24 @@ with st.sidebar:
     st.header("Configuration")
     st.markdown("""
     ### Stock Symbol Guide
-    - Taiwan stocks: Enter number only (e.g., '2330' for TSMC)
+    - Taiwan stocks: Enter number only (e.g., '0050' for Taiwan Top 50 ETF)
     - US stocks: Enter full symbol (e.g., 'AAPL' for Apple)
     """)
-    raw_symbol = st.text_input("Stock Symbol", value="2330")
+    raw_symbol = st.text_input("Stock Symbol", value="0050")
     
     # Automatically append .TW for numeric symbols (Taiwan stocks)
     symbol = raw_symbol + ".TW" if raw_symbol.isdigit() else raw_symbol
     
     # Date inputs
     today = date.today()
-    default_start = date(2025, 1, 1)  # January 1st, 2025
+    default_start = date(2024, 1, 1)  # January 1st, 2024
     start_date = st.date_input("Start Date", value=default_start)
     end_date = st.date_input("End Date", value=today)
     
     # Model parameters
     st.header("Model Parameters")
     sequence_length = st.slider("Sequence Length (days)", min_value=10, max_value=90, value=30)
-    epochs = st.slider("Training Epochs", min_value=10, max_value=100, value=30)
+    epochs = st.slider("Training Epochs", min_value=10, max_value=100, value=50)
     
     predict_button = st.button("Predict", type="primary")
 

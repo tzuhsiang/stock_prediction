@@ -10,6 +10,11 @@ This project uses LSTM (Long Short-Term Memory) neural networks to predict stock
 - Visualizes predictions vs actual prices
 - Docker support for easy deployment
 
+## Web Demo
+!(imgs/demo.png)
+
+
+
 ## Local Installation
 
 1. Clone this repository
