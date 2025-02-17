@@ -6,6 +6,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./models:/app/models
+      - ./app.py:/app/app.py
     environment:
       - TZ=Asia/Taipei
       - http_proxy=http://10.160.3.88:8080
