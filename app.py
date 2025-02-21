@@ -19,8 +19,10 @@ with st.sidebar:
     """)
     raw_symbol = st.text_input("Stock Symbol", value="0050")
     
-    # Automatically append .TW for numeric symbols (Taiwan stocks)
-    symbol = raw_symbol + ".TW" if raw_symbol.isdigit() else raw_symbol
+    # Handle Taiwan stock symbols
+    if raw_symbol.isdigit():
+        # For ETFs and most stocks, use .TW
+        symbol = f"{raw_symbol}.TW"
     
     # Date inputs
     today = date.today()
