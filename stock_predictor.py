@@ -2,7 +2,11 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import os
+import requests
 from urllib import request
+from urllib3.exceptions import InsecureRequestWarning
+import urllib3
+import json
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, r2_score
 from tensorflow.keras.models import Sequential
@@ -14,22 +18,93 @@ class StockPredictor:
         self.model = None
         self.scaler = MinMaxScaler()
         
-        # Configure proxy for yfinance
-        proxy = os.environ.get('HTTP_PROXY')
-        if proxy:
-            request.getproxies = lambda: {'http': proxy, 'https': proxy}
+        # Get proxy configuration from environment variables
+        http_proxy = os.environ.get('HTTP_PROXY') or os.environ.get('http_proxy')
+        https_proxy = os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy')
+        
+        self.proxies = {}
+        if http_proxy and https_proxy:
+            self.proxies = {
+                'http': http_proxy,
+                'https': https_proxy
+            }
+            print(f"Using proxy settings from environment: {self.proxies}")
+        else:
+            print("Warning: No proxy settings found in environment variables")
         
     def fetch_data(self, symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
-        """Fetch stock data from Yahoo Finance"""
+        """Fetch stock data directly from Yahoo Finance API"""
+        # Configure session
+        session = requests.Session()
+        if self.proxies:
+            session.proxies = self.proxies
+            session.verify = False
+            urllib3.disable_warnings(InsecureRequestWarning)
+
+        # Add headers
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive'
+        }
+        session.headers.update(headers)
+
+        print(f"Fetching data for {symbol}...")
+
         try:
-            data = yf.download(symbol, start=start_date, end=end_date, proxy=os.environ.get('HTTP_PROXY'))
+            # Convert dates to timestamps
+            start_ts = int(pd.Timestamp(start_date).timestamp())
+            end_ts = int(pd.Timestamp(end_date).timestamp())
+            
+            # Construct URL with parameters
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?period1={start_ts}&period2={end_ts}&interval=1d"
+            
+            # Get data
+            response = session.get(url, timeout=30)
+            response.raise_for_status()  # Raise exception for bad status codes
+            
+            # Fix and parse JSON
+            fixed_json = response.text.replace('""', '","')
+            parsed_data = json.loads(fixed_json)
+            
+            # Extract chart data
+            result = parsed_data['chart']['result'][0]
+            timestamps = result['timestamp']
+            quote = result['indicators']['quote'][0]
+            
+            # Create pandas DataFrame
+            data = pd.DataFrame({
+                'Open': quote['open'],
+                'High': quote['high'],
+                'Low': quote['low'],
+                'Close': quote['close'],
+                'Volume': quote['volume']
+            }, index=pd.to_datetime([pd.Timestamp(ts, unit='s', tz='Asia/Taipei') for ts in timestamps]))
+            
             if data.empty:
-                raise ValueError(f"No data found for symbol {symbol}. Please check the symbol is correct.")
+                raise ValueError(f"No data found for symbol {symbol}")
+
+            # Handle NaN values
+            if data['Close'].isna().any():
+                print("Found NaN values in Close prices, filling with forward/backward fill")
+                data['Close'] = data['Close'].fillna(method='ffill').fillna(method='bfill')
+            
+            # Fill NaN values in other columns
+            data = data.fillna(method='ffill').fillna(method='bfill')
+            
+            # Double check for any remaining NaN
+            if data.isna().any().any():
+                raise ValueError(f"Unable to clean data for {symbol}: still contains NaN values")
+            
             if len(data) < self.sequence_length:
-                raise ValueError(f"Not enough data points for {symbol}. Need at least {self.sequence_length} days of data.")
+                raise ValueError(f"Not enough data points. Need at least {self.sequence_length} days of data.")
+            
+            print(f"Successfully retrieved {len(data)} rows of data")
+            return data
+            
         except Exception as e:
-            raise ValueError(f"Error fetching data for {symbol}: {str(e)}")
-        return data
+            raise ValueError(f"Failed to fetch data for {symbol}: {str(e)}")
     
     def prepare_data(self, data: pd.DataFrame):
         """Prepare data for LSTM model"""
