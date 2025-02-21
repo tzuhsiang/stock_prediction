@@ -2,6 +2,11 @@ services:
   stock-predictor:
     build:
       context: .
+      args:
+        - http_proxy=${http_proxy}
+        - https_proxy=${https_proxy}
+        - HTTP_PROXY=${HTTP_PROXY}
+        - HTTPS_PROXY=${HTTPS_PROXY}
       dockerfile: Dockerfile
     volumes:
       - ./data:/app/data
@@ -10,7 +15,7 @@ services:
       - ./test_stock.py:/app/test_stock.py
       - ./stock_predictor.py:/app/stock_predictor.py
     env_file:
-      - .env
+      - env/.env
     environment:
       - TZ=Asia/Taipei
     ports:
